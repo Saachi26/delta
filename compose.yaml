@@ -1,0 +1,42 @@
+services:
+  backend:
+    image: delta-backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DATABASE_URL: sqlite:////data/delta.db
+      DELTA_OFFLINE: ${DELTA_OFFLINE:-0}
+      NSE_HOLIDAYS: ${NSE_HOLIDAYS:-}
+    volumes:
+      - delta-data:/data
+    ports:
+      - "${DELTA_API_PORT:-8010}:8010"
+    init: true
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${DELTA_PORT:-5173}:80"
+    init: true
+    restart: unless-stopped
+
+  seed:
+    profiles: ["tools"]
+    image: delta-backend
+    command: ["python", "seed_sample_users.py"]
+    environment:
+      DATABASE_URL: sqlite:////data/delta.db
+      DELTA_OFFLINE: "0"
+    volumes:
+      - delta-data:/data
+    init: true
+
+volumes:
+  delta-data:
