@@ -1,0 +1,128 @@
+/* .card supplies the panel, border, radius and padding; only the heading
+   spacing has to be pulled back from the global h3 rule. */
+.peers h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.peers-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* Safety net on very narrow screens: scroll instead of pushing the card wide. */
+.peers-scroll {
+  overflow-x: auto;
+}
+
+.peers-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.peers-table th {
+  padding: 0 8px 6px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.peers-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.peers-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.peers-left {
+  text-align: left;
+}
+
+.peers-num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.peers-name {
+  display: block;
+  font-weight: 600;
+}
+
+.peers-symbol {
+  display: block;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.peers-tag {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 500;
+  vertical-align: 1px;
+}
+
+.peers-row.clickable {
+  cursor: pointer;
+}
+
+.peers-row.clickable:hover,
+.peers-row.clickable:focus-visible {
+  background: var(--bg);
+}
+
+.peers-row.clickable:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+.peers-row.is-current {
+  background: var(--bg);
+}
+
+.peers-up { color: var(--green); }
+.peers-down { color: var(--red); }
+.peers-null { color: var(--muted); }
+
+.peers-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Quiet stays neutral so green and red only ever mean price direction. */
+.peers-pill.calm { background: var(--quiet-soft); color: var(--quiet); }
+.peers-pill.warn { background: var(--amber-soft); color: var(--amber); }
+.peers-pill.alert { background: var(--red-soft); color: var(--red); }
+
+.peers-caption {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+/* Phone width: the 1M column is the least urgent, so it goes first. */
+@media (max-width: 559px) {
+  .peers-1m {
+    display: none;
+  }
+}

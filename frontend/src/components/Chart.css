@@ -1,0 +1,137 @@
+.chart-head {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 6px;
+}
+
+.chart-ranges {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.chart-ranges .chart-range {
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 11px;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.chart-ranges .chart-range:hover:not(:disabled) {
+  color: var(--ink);
+  background: var(--bg);
+  filter: none;
+}
+
+.chart-ranges .chart-range.on {
+  color: var(--ink);
+  background: #eef1f6;
+  font-weight: 600;
+}
+
+.chart-ranges .chart-range:disabled {
+  color: #b6bdca;
+  cursor: default;
+  background: transparent;
+  opacity: 1;
+}
+
+.chart-ranges .chart-range:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.chart-plot {
+  position: relative;
+  width: 100%;
+}
+
+.chart-svg {
+  display: block;
+  width: 100%;
+  touch-action: pan-y;
+}
+
+.chart-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.chart-cross {
+  stroke: #c3cad6;
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.chart-axis {
+  font-size: 11.5px;
+  fill: var(--muted);
+}
+
+.chart-tip {
+  position: absolute;
+  transform: translateX(-50%);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 4px 14px rgba(16, 21, 31, 0.1);
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+
+.chart-tip strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.chart-tip span {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.chart-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.chart-sep {
+  color: #c3cad6;
+}
+
+.chart-move {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.chart-move.up { color: var(--green); }
+.chart-move.down { color: var(--red); }
+
+.chart-empty {
+  margin: 0;
+  padding: 44px 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+}
