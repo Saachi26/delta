@@ -10,6 +10,7 @@ import StockCard from "./components/StockCard.jsx";
 import StockDetail from "./components/StockDetail.jsx";
 
 const POLL_MS = 30_000;
+const SAVED_MS = 4000;
 const TITLES = {
   watchlist: "Your watchlist",
   discover: "Discover",
@@ -23,6 +24,7 @@ export default function App() {
   const [openSymbol, setOpenSymbol] = useState(null);
   const [watchlist, setWatchlist] = useState(null);
   const [digest, setDigest] = useState(null);
+  const [justSaved, setJustSaved] = useState(false);
   const [error, setError] = useState("");
 
   const refresh = useCallback(async () => {
@@ -90,6 +92,8 @@ export default function App() {
   const markSeen = () =>
     run(async () => {
       await api("/seen", "POST");
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), SAVED_MS);
       refresh();
     });
 
@@ -134,7 +138,7 @@ export default function App() {
 
         {view === "watchlist" && (
           <>
-            <Digest digest={digest} onSeen={markSeen} />
+            <Digest digest={digest} onSeen={markSeen} justSaved={justSaved} />
             {watchlist?.rows.length === 0 && (
               <div className="card empty">
                 <strong>Your watchlist is empty.</strong>

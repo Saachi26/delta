@@ -1,6 +1,9 @@
 import { rupees, timeAgo } from "../api.js";
 
-export default function Digest({ digest, onSeen }) {
+const SAVED_MESSAGE =
+  "Saved. Today's prices are now your comparison point, so from here you only see what changes next.";
+
+export default function Digest({ digest, onSeen, justSaved }) {
   if (!digest) return null;
 
   if (digest.first_visit) {
@@ -13,8 +16,11 @@ export default function Digest({ digest, onSeen }) {
         </p>
         <div className="row-between digest-foot">
           <span className="muted small">Save today as your comparison point</span>
-          <button onClick={onSeen}>Mark all as seen</button>
+          <button onClick={onSeen} disabled={justSaved}>
+            {justSaved ? "Saved" : "Mark all as seen"}
+          </button>
         </div>
+        {justSaved && <p className="seen-note">{SAVED_MESSAGE}</p>}
       </section>
     );
   }
@@ -89,8 +95,11 @@ export default function Digest({ digest, onSeen }) {
           {digest.muted_count > 0 &&
             `${digest.quiet_count > 0 ? " · " : ""}${digest.muted_count} muted`}
         </span>
-        <button onClick={onSeen}>Mark all as seen</button>
+        <button onClick={onSeen} disabled={justSaved}>
+          {justSaved ? "Saved" : "Mark all as seen"}
+        </button>
       </div>
+      {justSaved && <p className="seen-note">{SAVED_MESSAGE}</p>}
     </section>
   );
 }
