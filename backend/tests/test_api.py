@@ -63,6 +63,13 @@ def test_auth_is_required(client):
     assert client.get("/api/watchlist", headers={"X-Username": "ghost"}).status_code == 401
 
 
+def test_api_documentation_is_not_public():
+    with TestClient(main.app) as c:
+        assert c.get("/docs").status_code == 404
+        assert c.get("/redoc").status_code == 404
+        assert c.get("/openapi.json").status_code == 404
+
+
 def test_add_remove_and_duplicate(client):
     h = login(client, "saachi")
     assert client.post("/api/watchlist", json={"symbol": "infy.ns"}, headers=h).status_code == 200

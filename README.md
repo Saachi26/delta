@@ -48,6 +48,36 @@ an explicit action rather than a side effect of rendering the page.
 
 ## Running it
 
+### Docker Compose
+
+With Docker Desktop running, build and start the complete application:
+
+```bash
+docker compose up --build
+```
+
+Open http://localhost:5173. The frontend is served by Nginx, `/api` requests
+are proxied to FastAPI, and SQLite data persists in the `delta-data` Docker
+volume.
+
+To populate the persistent volume with the sample watchlists and the
+`groww_judge` review account, run this once while the stack is up:
+
+```bash
+docker compose --profile tools run --rm seed
+```
+
+Useful overrides:
+
+```bash
+DELTA_PORT=8080 docker compose up --build       # frontend on port 8080
+DELTA_OFFLINE=1 docker compose up --build       # synthetic offline data
+docker compose down                             # stop containers, keep data
+docker compose down --volumes                   # also remove persisted data
+```
+
+### Local development
+
 Backend, needs Python 3.11 or newer:
 
 ```bash
@@ -66,8 +96,7 @@ npm run dev
 ```
 
 Open http://localhost:5173 and pick a username. There is no password: the
-username identifies you so your watchlist can live on the server. Interactive
-API docs are at http://localhost:8010/docs.
+username identifies you so your watchlist can live on the server.
 
 ### Seeded review account
 
@@ -79,10 +108,13 @@ cd backend
 .venv/bin/python seed_sample_users.py
 ```
 
-Then sign in as `groww_judge`. The script creates `sample1` through `sample36`
-to exercise watch-count ranking. It gives the review account a watchlist selected
-from the latest real NSE closes and stores the previous real trading close as
-its baseline. It never changes or invents a quote. Re-running it replaces only
+Then sign in as `groww_judge`, or as any of `sample1` through `sample36`, which
+also exercise watch-count ranking. Every seeded account gets a baseline, so the
+return-visit digest has something real to show immediately. It gives the review account a watchlist selected
+from the latest real NSE closes and stores the close from `BASELINE_DAYS`
+trading days earlier, five by default, as its baseline. That is a realistic gap
+between visits and gives the digest a real change to describe. It never changes
+or invents a quote. Re-running it replaces only
 these explicitly named sample accounts.
 
 ### Offline mode
@@ -102,7 +134,7 @@ cd backend
 .venv/bin/python -m pytest tests/
 ```
 
-120 tests. They cover the signal maths (the same move scoring differently on a
+121 tests. They cover the signal maths (the same move scoring differently on a
 calm and a volatile stock, thin history producing no false alarms, divide by
 zero guards), the API end to end (auth, duplicates, cross-user isolation,
 muting, the scripted week surfacing exactly the right stocks in the right

@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
@@ -18,7 +19,13 @@ import signals
 import stocks
 from schemas import AddSymbolIn, LoginIn, SensitivityIn
 
-app = FastAPI(title="Delta", description="Smart market watchlist, Groww Code hackathon")
+app = FastAPI(
+    title="Delta",
+    description="Smart market watchlist, Groww Code hackathon",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
 CORS_ORIGINS = [
     origin.strip()
     for origin in os.environ.get("CORS_ORIGINS", "http://localhost:5173").split(",")
@@ -31,6 +38,7 @@ app.add_middleware(
     allow_headers=["Content-Type", "X-Username"],
 )
 db.init_db()
+SNAPSHOT_ROWS = quotes.load_snapshot()
 
 SPARK_DAYS = 30
 DIGEST_LIMIT = 5
@@ -590,3 +598,11 @@ def health(session=Depends(get_session)):
         "cache_hit_rate": round(quotes.stats["history_hit"] / served, 3) if served else 0,
         "upstream_failures": quotes.stats["failure"],
     }
+
+
+# A single-container deployment ships the built frontend beside the API. Mounted
+# last so every /api route still wins, and skipped entirely in local development
+# where Vite serves the frontend itself.
+STATIC_DIR = os.environ.get("STATIC_DIR", "static")
+if os.path.isdir(STATIC_DIR):
+    app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="frontend")
