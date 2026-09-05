@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: delta
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      # paste the Neon connection string in the Render dashboard
+      - key: DATABASE_URL
+        sync: false
+      # daily bars change once a day, so hold them for six hours
+      - key: HISTORY_TTL
+        value: 21600
+      - key: LIVE_TTL
+        value: 120
