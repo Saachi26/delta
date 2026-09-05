@@ -1,4 +1,6 @@
 """Market-data retrieval, caching, and quote reconciliation."""
+import gzip
+import json
 import os
 import time
 import warnings
@@ -14,8 +16,19 @@ warnings.filterwarnings("ignore", module="yfinance")
 
 INDEX = "^NSEI"
 
-HISTORY_TTL = 300
-LIVE_TTL = 30
+def _seconds(name, default):
+    """Cache lifetimes are settable so a deployment can ask upstream less often."""
+    try:
+        return int(os.environ[name])
+    except (KeyError, ValueError):
+        return default
+
+
+# Daily bars only change once a trading day, so a deployment can hold them for
+# hours. Intraday prices are the reason to ask again during the session.
+HISTORY_TTL = _seconds("HISTORY_TTL", 300)
+LIVE_TTL = _seconds("LIVE_TTL", 30)
+FAILURE_BACKOFF = _seconds("FAILURE_BACKOFF", 120)
 DELAYED_AFTER = 900
 IMPLAUSIBLE = 0.25
 
@@ -118,6 +131,42 @@ def _splits_from(frame):
             for day, ratio in column.items() if ratio}
 
 
+SNAPSHOT_PATH = os.environ.get("MARKET_SNAPSHOT", "data/market_snapshot.json.gz")
+
+
+def load_snapshot(path=None):
+    """Fill the cache from a shipped file so a cold server is never blank.
+
+    The entries are deliberately left expired. Live data is still preferred and
+    still fetched; this only gives the existing fallback something to serve when
+    the upstream source refuses us, which happens far more from a datacentre.
+    """
+    path = path or SNAPSHOT_PATH
+    if offline_mode() or not os.path.exists(path):
+        return 0
+    with gzip.open(path, "rt") as handle:
+        saved = json.load(handle)
+    loaded = 0
+    for symbol, entry in saved.items():
+        try:
+            _store_history(symbol, entry["closes"], entry["volumes"], entry["dates"],
+                           entry.get("highs"), entry.get("lows"), entry.get("splits"))
+        except (KeyError, ValueError):
+            continue
+        _history_cache[symbol]["fetched_at"] = 0
+        loaded += 1
+    return loaded
+
+
+def snapshot_entries():
+    """The cached histories, in the shape load_snapshot reads back."""
+    return {
+        symbol: {key: entry[key] for key in
+                 ("closes", "volumes", "dates", "highs", "lows", "splits")}
+        for symbol, entry in _history_cache.items()
+    }
+
+
 def get_history(symbol):
     """A year of daily closes + volumes, with age/source/stale metadata."""
     if offline_mode():
@@ -127,6 +176,10 @@ def get_history(symbol):
     if _fresh(cached, HISTORY_TTL):
         stats["history_hit"] += 1
         return cached
+    # a source that just refused us will refuse us again, so wait before retrying
+    if cached and time.time() - cached.get("failed_at", 0) < FAILURE_BACKOFF:
+        stats["history_hit"] += 1
+        return {**cached, "stale": True}
 
     try:
         stats["history_fetch"] += 1
@@ -139,6 +192,7 @@ def get_history(symbol):
     except Exception as exc:
         stats["failure"] += 1
         if cached:
+            cached["failed_at"] = time.time()
             return {**cached, "stale": True}
         raise MarketDataUnavailable(f"market data unavailable for {symbol}") from exc
 
