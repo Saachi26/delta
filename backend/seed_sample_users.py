@@ -2,11 +2,12 @@
 
 Run this only for the hackathon review environment. The generated accounts are
 named ``sample1`` through ``sample36`` so they cannot be mistaken for real
-customers. The
-``groww_judge`` account is given a watchlist and a snapshot from the previous
-actual trading close, allowing the return-visit digest to be reviewed
-immediately without altering quote data.
+customers. Every seeded account, including ``groww_judge``, is given a watchlist
+and a snapshot taken at the previous actual trading close, so the return-visit
+digest can be reviewed immediately without altering quote data. Signing in with
+a brand new username still shows the genuine first-visit state.
 """
+import os
 import random
 from datetime import datetime, time, timezone
 from statistics import median
@@ -20,10 +21,13 @@ import stocks
 
 SAMPLE_USER_COUNT = 36
 COMMUNITY_POOL_SIZE = 60
-SHOWCASE_POOL_SIZE = 48
+SHOWCASE_POOL_SIZE = 60
 SHOWCASE_SIZE = 12
 SAMPLE_PREFIX = "sample"
 SHOWCASE_USER = "groww_judge"
+# How long ago the seeded accounts last looked. A week is a realistic gap and
+# gives the digest a real change to describe rather than one quiet session.
+BASELINE_DAYS = max(1, int(os.environ.get("BASELINE_DAYS", 5)))
 
 
 def _replace_user(session, username):
@@ -61,6 +65,28 @@ def _sample_portfolio(rng, universe, size):
     return chosen
 
 
+def _closing_time(date_text):
+    """The 15:30 IST close of a trading date, as UTC."""
+    return datetime.combine(
+        datetime.fromisoformat(date_text).date(),
+        time(15, 30),
+        ZoneInfo("Asia/Kolkata"),
+    ).astimezone(timezone.utc)
+
+
+def _seen_at_previous_close(session, user, symbol, base):
+    """Record that the user last saw this stock at the previous real close."""
+    seen_at = _closing_time(base["baseline_date"])
+    session.add(db.Snapshot(
+        user_id=user.id,
+        symbol=symbol,
+        price=base["baseline_price"],
+        volume=base["baseline_volume"],
+        taken_at=seen_at,
+    ))
+    return seen_at
+
+
 def _real_move_candidates():
     """Rank liquid stocks by their actual latest close-to-close significance."""
     universe = stocks.POPULARITY[:SHOWCASE_POOL_SIZE]
@@ -72,7 +98,7 @@ def _real_move_candidates():
             closes = history["closes"]
             volumes = history["volumes"]
             dates = history["dates"]
-            if len(closes) < 35 or len(volumes) != len(closes):
+            if len(closes) < 35 + BASELINE_DAYS or len(volumes) != len(closes):
                 continue
             moves = signals.daily_moves(closes[:-1])[-60:]
             spread = signals.typical_spread(moves)
@@ -81,10 +107,13 @@ def _real_move_candidates():
             )
             if not spread or signals.too_thin_to_trust(turnover):
                 continue
-            change = (closes[-1] - closes[-2]) / closes[-2] * 100
+            was = closes[-1 - BASELINE_DAYS]
+            change = (closes[-1] - was) / was * 100
             volume_ratio = signals.volume_ratio(volumes[-1], volumes[:-1][-30:]) or 0
             landmark = signals.crossed_52w(closes[-1], closes[:-1])
-            significance = abs(change / spread) + max(0, volume_ratio - 1) * 0.4
+            # a move over several days has more room to drift, so scale the bar
+            significance = abs(change / (spread * BASELINE_DAYS ** 0.5))
+            significance += max(0, volume_ratio - 1) * 0.4
             if landmark:
                 significance += 2
             ranked.append({
@@ -92,9 +121,9 @@ def _real_move_candidates():
                 "history": history,
                 "change": change,
                 "significance": significance,
-                "baseline_price": closes[-2],
-                "baseline_volume": volumes[-2],
-                "baseline_date": dates[-2],
+                "baseline_price": was,
+                "baseline_volume": volumes[-1 - BASELINE_DAYS],
+                "baseline_date": dates[-1 - BASELINE_DAYS],
             })
         except quotes.MarketDataUnavailable:
             continue
@@ -115,35 +144,34 @@ def seed():
         rng = random.Random(2026)
         community = stocks.POPULARITY[:COMMUNITY_POOL_SIZE]
         _remove_legacy_sample_users(session)
+        baselines = {item["symbol"]: item for item in candidates}
         for number in range(1, SAMPLE_USER_COUNT + 1):
             user = _replace_user(session, f"{SAMPLE_PREFIX}{number}")
+            seen_times = []
             for symbol in _sample_portfolio(rng, community, rng.randint(7, 14)):
                 session.add(db.WatchItem(user_id=user.id, symbol=symbol))
+                base = baselines.get(symbol)
+                if base:
+                    seen_times.append(_seen_at_previous_close(session, user, symbol, base))
+            # a seeded account has already seen the previous close, so the digest
+            # has something real to subtract from on the first page load
+            if seen_times:
+                user.last_seen_at = min(seen_times)
 
         reviewer = _replace_user(session, SHOWCASE_USER)
         seen_times = []
         for item in candidates[:SHOWCASE_SIZE]:
             session.add(db.WatchItem(user_id=reviewer.id, symbol=item["symbol"]))
-            seen_at = datetime.combine(
-                datetime.fromisoformat(item["baseline_date"]).date(),
-                time(15, 30),
-                ZoneInfo("Asia/Kolkata"),
-            ).astimezone(timezone.utc)
-            seen_times.append(seen_at)
-            session.add(db.Snapshot(
-                user_id=reviewer.id,
-                symbol=item["symbol"],
-                price=item["baseline_price"],
-                volume=item["baseline_volume"],
-                taken_at=seen_at,
-            ))
+            seen_times.append(
+                _seen_at_previous_close(session, reviewer, item["symbol"], item)
+            )
         reviewer.last_seen_at = min(seen_times)
         session.commit()
     finally:
         session.close()
 
     print(f"Seeded {SAMPLE_USER_COUNT} sample community accounts.")
-    print(f"Sign in as {SHOWCASE_USER} to review real close-to-close changes:")
+    print(f"Sign in as {SHOWCASE_USER}. Its last visit is {BASELINE_DAYS} trading days back:")
     for item in candidates[:SHOWCASE_SIZE]:
         print(
             f"  {item['symbol']:<18} {item['change']:+6.2f}%  "
